@@ -24,7 +24,6 @@ def simple_angle_converter(pointpx, top_right, top_left, bottom_left, bottom_rig
     image_width_in_lon = (tr[0] - tl[0] + br[0] - bl[0])/2
     image_height_in_lat = (tl[1] - bl[1] + tr[1] - br[1])/2
     
-    center_lon, center_lat = np.array(corner_coords).mean(axis=0)
     top_left_lon, top_left_lat = tl
         
     # 2. now convert (px, py) -> (dlon, dlat)
@@ -68,23 +67,23 @@ class TestTransform(unittest.TestCase):
 		bottom_right = np.array([lon_max, lat_min])
 		
 		# check that top left is sane
-		res = transform.transform(np.array([0, height]), top_right, top_left,
+		res = simple_angle_converter(np.array([0, 0]), top_right, top_left,
 			bottom_left, bottom_right, np.array([height, width]))
 		self.assertTrue(np.allclose(res, top_left))
 	
 		# check that top right is sane
-		res = transform.transform(np.array([width,height]), top_right, top_left,
-			bottom_left, bottom_right, np.array([width, height]))
+		res = simple_angle_converter(np.array([width,0]), top_right, top_left,
+			bottom_left, bottom_right, np.array([height, width]))
 		self.assertTrue(np.allclose(res, top_right))
 
 		# check that bottom left is sane
-		res = transform.transform(np.array([0,0]), top_right, top_left,
-			bottom_left, bottom_right, np.array([width, height]))
+		res = simple_angle_converter(np.array([0,height]), top_right, top_left,
+			bottom_left, bottom_right, np.array([height, width]))
 		self.assertTrue(np.allclose(res, bottom_left))
 	
 		# check that bottom right is sane
-		res = transform.transform(np.array([width,0]), top_right, top_left,
-			bottom_left, bottom_right, np.array([width, height]))
+		res = simple_angle_converter(np.array([width,height]), top_right, top_left,
+			bottom_left, bottom_right, np.array([height, width]))
 		self.assertTrue(np.allclose(res, bottom_right))
 
 #	def test_north_poll_edge_case(self):
