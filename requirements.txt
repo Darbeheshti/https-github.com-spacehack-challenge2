@@ -1,0 +1,5 @@
+numpy
+scipy
+matplotlib
+pillow
+gdal==2.4.0

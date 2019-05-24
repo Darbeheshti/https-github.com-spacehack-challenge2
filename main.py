@@ -62,6 +62,7 @@ meta_list = glob.glob('./input/*.txt')
 # sort both lists the same way = all elements are in the identical order (verify)
 
 # loop through both lists - NOT YET IMPLEMENTED
+
 for i1 in image_list:
     for i2 in meta_list:
         print("LOOPING!")
@@ -132,7 +133,7 @@ for i1 in image_list:
             class_type = img_coord_split[5]
         # ___________________________________________________________________________________________________
         # %% 6c) Latitude normalization
-        # bring lat to 0-180° range to avoid edge effects
+        # bring lat to 0-180 degree range to avoid edge effects
 
         if parent_ul_lat_orig > 0:
             parent_ul_lat = parent_ul_lat_orig + 90
@@ -311,7 +312,7 @@ for i1 in image_list:
                     rec_ul_y_corr = y_len - rec_ul_y
 
                 rec_ul_lon = (rec_ul_x_corr * deg_per_pix_xdir) + corner_ul_lon
-                rec_ul_lat = -1 * (rec_ul_y_corr * deg_per_pix_ydir) + corner_ul_lat - 90  # 90° correction lifted
+                rec_ul_lat = -1 * (rec_ul_y_corr * deg_per_pix_ydir) + corner_ul_lat - 90  # 90 degree correction lifted
 
                 x_length_array = abs(lower_right_x - upper_left_x)  # bbox x dimension
                 y_length_array = abs(lower_right_y - upper_left_y)  # bbox y dimension
