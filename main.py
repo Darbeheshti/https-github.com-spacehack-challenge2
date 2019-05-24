@@ -69,7 +69,7 @@ def create_meta_obj(file_name):
 #            './output/output_img_coord_02.npy')  # load results of RetinaNet, always the identical name
 #        img_coord_split = np.hsplit(image_coord, 6)  # split loaded results for next steps
 
-def create_boulder_obj(file_name):
+def create_boulder_obj():
     row_boulders = np.load('./output/output_img_coord_02.npy')
     row_boulders_split = np.vsplit(row_boulders, row_boulders.shape[0])
     boulders = []
@@ -105,7 +105,7 @@ def process_image(parent, meta_data):
     # ___________________________________________________________________________________________________
     # %% 6b) load_image_coordinates
 
-    boulders = create_boulder_obj('./output/output_img_coord_02.npy')
+    boulders = create_boulder_obj()
 
 
     # ___________________________________________________________________________________________________
@@ -227,7 +227,7 @@ def process_image(parent, meta_data):
             print("No detections for CT 0.2!")
     # ___________________________________________________________________________________________________
     # %% 6k) output
-    try:
+    for rock in boulders:
         if lower_right_x_int.size > 0:
             length2 = len(boulder_diameter_meter)
             id_column = [image_id for x in range(length2)]
@@ -240,18 +240,16 @@ def process_image(parent, meta_data):
             print("No detections - no id csv for CT 0.2!")
 
         if lower_right_x_int.size > 0:
-            output = np.column_stack((lon_array_center, lat_array_center, lon_array, lat_array,
-                                      boulder_diameter_meter, x_length_array, y_length_array, x_length_array_meter,
-                                      y_length_array_meter, upper_left_x, upper_left_y, lower_right_x,
-                                      lower_right_y, confidence, pix_column))
+            output = np.column_stack((rock.lon_array_center, rock.lat_array_center, rock.lon_array, rock.lat_array,
+                                      boulder_diameter_meter, rock.x_length_array, rock.y_length_array, x_length_array_meter,
+                                      y_length_array_meter, rock.upper_left_x, rock.upper_left_y, rock.lower_right_x,
+                                      rock.lower_right_y, rock.confidence, pix_column))
             # output: [center LON, center LAT, upper_left LON, upper_left LAT, boulder_diameter meter, x_length in pixel, y_length in pixel, x_length in meter, y_length in meter, upper_left_x_img, upper_left_y_img, lower_right_x_img, lower_right_y_img, confidence, NAC resolution]
             path = os.path.join('.', 'output', 'output_map_coord_02.csv')
             # np.save(path, output)
             np.savetxt(path, output, delimiter=',', fmt='%1.5f')
         else:
             print("No detections - no output csv for CT 0.2!")
-    except NameError:
-        print("No detections for CT 0.2!")
     # ArcGIS Export, not used
     # LON_list = np.vstack((meta_data.ul_lon, meta_data.ur_lon, meta_data.ll_lon, meta_data.lr_lon))
     # LAT_list = np.vstack((meta_data.ul_lat_orig, meta_data.ur_lat_orig, meta_data.ll_lat_orig, meta_data.lr_lat_orig))
