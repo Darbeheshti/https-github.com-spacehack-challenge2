@@ -14,6 +14,7 @@ import pandas as pd
 from PIL import Image
 from osgeo import ogr
 from metadata import MetaData
+from boulder import Boulder
 
 # keras tensorflow etc are missing
 
@@ -64,6 +65,18 @@ meta_list = glob.glob('./input/*.txt')
 def create_meta_obj(file_name):
     return MetaData(np.loadtxt(file_name))
 
+#  image_coord = np.load(
+#            './output/output_img_coord_02.npy')  # load results of RetinaNet, always the identical name
+#        img_coord_split = np.hsplit(image_coord, 6)  # split loaded results for next steps
+
+def create_boulder_obj(file_name):
+    row_boulders = np.load('./output/output_img_coord_02.npy')
+    row_boulders_split = np.vsplit(row_boulders, row_boulders.shape[0])
+    boulders = []
+    for rock in row_boulders_split:
+        boulders.append(Boulder(rock))
+
+    return boulders
 
 def process_image(parent, meta_data):
     global remove_tiles_path
@@ -91,33 +104,15 @@ def process_image(parent, meta_data):
     image_id = image_id[:-4]
     # ___________________________________________________________________________________________________
     # %% 6b) load_image_coordinates
-    image_coord = np.load(
-        './output/output_img_coord_02.npy')  # load results of RetinaNet, always the identical name
-    img_coord_split = np.hsplit(image_coord, 6)  # split loaded results for next steps
-    upper_left_x = img_coord_split[0]
-    upper_left_y = img_coord_split[1]
-    lower_right_x = img_coord_split[2]
-    lower_right_y = img_coord_split[3]
-    confidence = img_coord_split[4]
-    class_type = img_coord_split[5]
+
+    boulders = create_boulder_obj('./output/output_img_coord_02.npy')
+
 
     # ___________________________________________________________________________________________________
     # %% 6g) Calculations
-    dimensions = parent.shape
-    x_len = dimensions[1]
-    y_len = dimensions[0]
-    x_deg_len = meta_data.corner_ur_lon - meta_data.corner_ul_lon
-    y_deg_len = meta_data.corner_ul_lat - meta_data.corner_ll_lat
-    deg_per_pix_xdir = x_deg_len / x_len
-    deg_per_pix_ydir = y_deg_len / y_len
-    # LON NAC rotation correction - appears not to help accuracy, subject to change!
-    # lon_alpha_rad = math.atan(x_deg_len/y_deg_len)
-    # x_len_corr = x_len * math.cos(lon_alpha_rad)
-    # LAT NAC rotation correction - appears not to help accuracy, subject to change!
-    # lat_alpha_rad = math.atan(y_deg_len/x_deg_len)
-    # y_len_corr = y_len * math.sin(lat_alpha_rad)
-    # deg_per_pix_xdir = x_deg_len/x_len_corr
-    # deg_per_pix_ydir = y_deg_len/y_len_corr
+
+    for rock in boulders:
+        rock.calculateGlobalCoord(rock,meta_data,parent)
     # ___________________________________________________________________________________________________
     # %% 6h) Detected rectangle location correction according to Subject & Real world coordinate determination
     # -------> X
@@ -126,149 +121,110 @@ def process_image(parent, meta_data):
     # |
     # v
     # Y
-    lon_array = []
-    lat_array = []
-    try:
-        for rec_ul_x, rec_ul_y in zip(upper_left_x, upper_left_y):
-            # print(rec_ul_x, rec_ul_y)
-
-            if meta_data.subject == 1:  # NO CHANGE
-                rec_ul_x_corr = rec_ul_x
-                rec_ul_y_corr = rec_ul_y
-
-            if meta_data.subject == 2:  # X FLIP
-                rec_ul_x_corr = x_len - rec_ul_x
-                rec_ul_y_corr = rec_ul_y
-
-            if meta_data.subject == 3:  # Y FLIP
-                rec_ul_x_corr = rec_ul_x
-                rec_ul_y_corr = y_len - rec_ul_y
-
-            if meta_data.subject == 4:  # XY FLIP
-                rec_ul_x_corr = x_len - rec_ul_x
-                rec_ul_y_corr = y_len - rec_ul_y
-
-            rec_ul_lon = (rec_ul_x_corr * deg_per_pix_xdir) + meta_data.corner_ul_lon
-            rec_ul_lat = -1 * (rec_ul_y_corr * deg_per_pix_ydir) + meta_data.corner_ul_lat - 90  # 90 degree correction lifted
-
-            x_length_array = abs(lower_right_x - upper_left_x)  # bbox x dimension
-            y_length_array = abs(lower_right_y - upper_left_y)  # bbox y dimension
-
-            lon_array = np.append(lon_array, rec_ul_lon)
-            lat_array = np.append(lat_array, rec_ul_lat)
-
-        center_x_shift = (x_length_array * deg_per_pix_xdir) / 2
-        center_y_shift = (y_length_array * deg_per_pix_ydir) / 2
-
-        lon_array_center = (lon_array.T + center_x_shift.T).T
-        lat_array_center = (lat_array.T + center_y_shift.T).T
-
-    except NameError:
-        print("No detections for CT 0.2!")
     # ___________________________________________________________________________________________________
     # %% 6i) Additional calculations
     # bbox & boulder size estimation
-    try:
-        bbox_diameter = np.sqrt((x_length_array ** 2) + (y_length_array ** 2))
-        boulder_diameter_pix = 0.059 * bbox_diameter + 0.9102  # based on Bickel et al., 2018, modified for gen4
-        boulder_diameter_meter = boulder_diameter_pix * meta_data.pix
-        x_length_array_meter = x_length_array * meta_data.pix
-        y_length_array_meter = y_length_array * meta_data.pix
-    except NameError:
-        print("No detections for CT 0.2!")
+        try:
+            bbox_diameter = np.sqrt((rock.x_length_array ** 2) + (rock.y_length_array ** 2))
+            boulder_diameter_pix = 0.059 * bbox_diameter + 0.9102  # based on Bickel et al., 2018, modified for gen4
+            boulder_diameter_meter = boulder_diameter_pix * meta_data.pix
+            x_length_array_meter = rock.x_length_array * meta_data.pix
+            y_length_array_meter = rock.y_length_array * meta_data.pix
+        except NameError:
+            print("No detections for CT 0.2!")
     # NAC acquisition time reconstruction
     # under construction
     # ___________________________________________________________________________________________________
     # %% 6j) Detection extraction for re-training
-    try:
-        aa = 0
-        bb = 0
-        cc = 0
-        dd = 0
+        try:
+            aa = 0
+            bb = 0
+            cc = 0
+            dd = 0
 
-        parent_width = 5064  # ALWAYS TRUE
+            parent_width = 5064  # ALWAYS TRUE
 
-        upper_left_y_int = upper_left_y.astype(int)
-        lower_right_y_int = lower_right_y.astype(int)
-        upper_left_x_int = upper_left_x.astype(int)
-        lower_right_x_int = lower_right_x.astype(int)
+            upper_left_y_int = rock.upper_left_y.astype(int)
+            lower_right_y_int = rock.lower_right_y.astype(int)
+            upper_left_x_int = rock.upper_left_x.astype(int)
+            lower_right_x_int = rock.lower_right_x.astype(int)
 
-        # Parent width filter & removal
-        width_filter_array = np.column_stack(
+            # Parent width filter & removal
+            width_filter_array = np.column_stack(
             (upper_left_x_int, lower_right_x_int, upper_left_y_int, lower_right_y_int))
-        width_filter_array[:, 0][width_filter_array[:, 0] > parent_width] = -1  # filter parent width
-        width_filter_array[:, 1][width_filter_array[:, 1] > parent_width] = -1
-        width_filter_array_T = width_filter_array.T
-        width_filter_array_T_filtered = width_filter_array_T[:,
+            width_filter_array[:, 0][width_filter_array[:, 0] > parent_width] = -1  # filter parent width
+            width_filter_array[:, 1][width_filter_array[:, 1] > parent_width] = -1
+            width_filter_array_T = width_filter_array.T
+            width_filter_array_T_filtered = width_filter_array_T[:,
                                         width_filter_array_T[0] != -1]  # kick out > NAC parent width
-        width_filter_array_T_filtered = width_filter_array_T_filtered[:, width_filter_array_T_filtered[1] != -1]
-        width_filter_array = width_filter_array_T_filtered.T
+            width_filter_array_T_filtered = width_filter_array_T_filtered[:, width_filter_array_T_filtered[1] != -1]
+            width_filter_array = width_filter_array_T_filtered.T
 
-        del upper_left_y_int, lower_right_y_int, upper_left_x_int, lower_right_x_int
+            del upper_left_y_int, lower_right_y_int, upper_left_x_int, lower_right_x_int
 
-        upper_left_y_int = width_filter_array[:, 2].astype(int)
-        lower_right_y_int = width_filter_array[:, 3].astype(int)
-        upper_left_x_int = width_filter_array[:, 0].astype(int)
-        lower_right_x_int = width_filter_array[:, 1].astype(int)
+            upper_left_y_int = width_filter_array[:, 2].astype(int)
+            lower_right_y_int = width_filter_array[:, 3].astype(int)
+            upper_left_x_int = width_filter_array[:, 0].astype(int)
+            lower_right_x_int = width_filter_array[:, 1].astype(int)
 
-        upper_left_y_integer = np.array(upper_left_y_int)
-        lower_right_y_integer = np.array(lower_right_y_int)
-        upper_left_x_integer = np.array(upper_left_x_int)
-        lower_right_x_integer = np.array(lower_right_x_int)
+            upper_left_y_integer = np.array(upper_left_y_int)
+            lower_right_y_integer = np.array(lower_right_y_int)
+            upper_left_x_integer = np.array(upper_left_x_int)
+            lower_right_x_integer = np.array(lower_right_x_int)
 
-        upper_left_y_int = upper_left_y_integer.astype(int)
-        lower_right_y_int = lower_right_y_integer.astype(int)
-        upper_left_x_int = upper_left_x_integer.astype(int)
-        lower_right_x_int = lower_right_x_integer.astype(int)
+            upper_left_y_int = upper_left_y_integer.astype(int)
+            lower_right_y_int = lower_right_y_integer.astype(int)
+            upper_left_x_int = upper_left_x_integer.astype(int)
+            lower_right_x_int = lower_right_x_integer.astype(int)
 
-        if upper_left_y_int.size > 0:
-            upper_left_y_int = np.column_stack(upper_left_y_int)
-        else:
-            upper_left_y_int = upper_left_y_int
-        upper_left_y_int = upper_left_y_int.T
+            if upper_left_y_int.size > 0:
+                upper_left_y_int = np.column_stack(upper_left_y_int)
+            else:
+                upper_left_y_int = upper_left_y_int
+            upper_left_y_int = upper_left_y_int.T
 
-        if lower_right_y_int.size > 0:
-            lower_right_y_int = np.column_stack(lower_right_y_int)
-        else:
-            lower_right_y_int = lower_right_y_int
-        lower_right_y_int = lower_right_y_int.T
+            if lower_right_y_int.size > 0:
+                lower_right_y_int = np.column_stack(lower_right_y_int)
+            else:
+                lower_right_y_int = lower_right_y_int
+            lower_right_y_int = lower_right_y_int.T
 
-        if upper_left_x_int.size > 0:
-            upper_left_x_int = np.column_stack(upper_left_x_int)
-        else:
-            upper_left_x_int = upper_left_x_int
-        upper_left_x_int = upper_left_x_int.T
+            if upper_left_x_int.size > 0:
+                upper_left_x_int = np.column_stack(upper_left_x_int)
+            else:
+                upper_left_x_int = upper_left_x_int
+            upper_left_x_int = upper_left_x_int.T
 
-        if lower_right_x_int.size > 0:
-            lower_right_x_int = np.column_stack(lower_right_x_int)
-        else:
-            lower_right_x_int = lower_right_x_int
-        lower_right_x_int = lower_right_x_int.T
+            if lower_right_x_int.size > 0:
+                lower_right_x_int = np.column_stack(lower_right_x_int)
+            else:
+                lower_right_x_int = lower_right_x_int
+            lower_right_x_int = lower_right_x_int.T
 
-        length1 = len(lower_right_x_int)
+            length1 = len(lower_right_x_int)
 
         # print(lower_right_x_int) # width debugging
 
-        if lower_right_x_int.size > 0:
-            for i11 in range(length1):
-                uly = upper_left_y_int[aa, 0]
-                lry = lower_right_y_int[bb, 0]
-                ulx = upper_left_x_int[cc, 0]
-                lrx = lower_right_x_int[dd, 0]
-                detection_crop = parent[uly:lry, ulx:lrx]
-                current_time = str(int(time.time() * 10000))
+            if lower_right_x_int.size > 0:
+                for i11 in range(length1):
+                    uly = upper_left_y_int[aa, 0]
+                    lry = lower_right_y_int[bb, 0]
+                    ulx = upper_left_x_int[cc, 0]
+                    lrx = lower_right_x_int[dd, 0]
+                    detection_crop = parent[uly:lry, ulx:lrx]
+                    current_time = str(int(time.time() * 10000))
 
-                image_save = Image.fromarray(detection_crop)
-                try:
-                    image_save.save('./detections/0.2/' + image_id + '_crop_' + current_time + '_02.tif', 'TIFF')
-                except SystemError:
-                    print("Patch touches parent edge - cutout not possible!")
-                aa = aa + 1
-                bb = bb + 1
-                cc = cc + 1
-                dd = dd + 1
-    except NameError:
-        print("No detections for CT 0.2!")
+                    image_save = Image.fromarray(detection_crop)
+                    try:
+                        image_save.save('./detections/0.2/' + image_id + '_crop_' + current_time + '_02.tif', 'TIFF')
+                    except SystemError:
+                        print("Patch touches parent edge - cutout not possible!")
+                    aa = aa + 1
+                    bb = bb + 1
+                    cc = cc + 1
+                    dd = dd + 1
+        except NameError:
+            print("No detections for CT 0.2!")
     # ___________________________________________________________________________________________________
     # %% 6k) output
     try:
