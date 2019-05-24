@@ -1,8 +1,10 @@
+from typing import NamedTuple
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def scale(pointpx: np.ndarray, corner1: np.ndarray, corner2: np.ndarray, corner4: np.ndarray, imagesize: np.ndarray):
+def scale(pointpx: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corner_ll: np.ndarray, imagesize: np.ndarray):
     """
     Scale `pointpx` into the longitude/latitude coordinate space.
 
@@ -10,11 +12,11 @@ def scale(pointpx: np.ndarray, corner1: np.ndarray, corner2: np.ndarray, corner4
     ----------
     pointpx : np.ndarray
         X and Y value of the pixel to be scaled.
-    corner1 : np.ndarray
+    corner_ur : np.ndarray
         The upper-right corner in long/lat space.
-    corner2 : np.ndarray
-        The upper-right corner in long/lat space.
-    corner4 : np.ndarray
+    corner_ul : np.ndarray
+        The upper-left corner in long/lat space.
+    corner_ll : np.ndarray
         The lower-right corner in long/lat space.
     imagesize : np.ndarray
         The X and Y size of the input-image in pixels.
@@ -24,14 +26,18 @@ def scale(pointpx: np.ndarray, corner1: np.ndarray, corner2: np.ndarray, corner4
     point : np.ndarray
         The scaled point.
     """
-    realsize = np.array([np.linalg.norm(corner1 - corner2), np.linalg.norm(corner1 - corner4)])
+    realsize = np.array([np.linalg.norm(corner_ur - corner_ul), np.linalg.norm(corner_ul - corner_ll)])
     scale = realsize / imagesize
     assert abs((scale[0] - scale[1]) / scale[1]) < 1.0, f"Scale is too different: x-scale={scale[0]} y-scale={scale[1]}"
     M_scale = np.array([[scale[0], 0], [0, scale[1]]])
     return M_scale @ pointpx
 
 
-def rotate(point : np.ndarray, corner1 : np.ndarray, corner2 : np.ndarray) -> np.ndarray:
+def calc_angle(v1, v2):
+    return np.arccos((v1 @ v2 / (np.linalg.norm(v1) * np.linalg.norm(v2))))
+
+
+def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
     """
     Rotate `point` to fit the rotation of the longitude/latitude coordinate-space.
 
@@ -39,41 +45,46 @@ def rotate(point : np.ndarray, corner1 : np.ndarray, corner2 : np.ndarray) -> np
     ----------
     point : np.ndarray
         X and Y value of the point.
-    corner1 : np.ndarray
+    corner_ur : np.ndarray
         The upper-right corner in long/lat space.
-    corner2 : np.ndarray
+    corner_ul : np.ndarray
         The upper-right corner in long/lat space.
+    corner_ll : np.ndarray
+        The lower-left corner in long/lat space.
 
     Returns
     -------
     point : np.ndarray
         The rotated point.
     """
-    v1 = corner2 - corner1
-    v2 = np.array([1, 0])
-    angle = np.arccos((v1 @ v2 / (np.linalg.norm(v1) * np.linalg.norm(v2))))
+    # find out what pair of corner to use to determine the roataion
+    anglex = -calc_angle(corner_ul - corner_ur, np.array([-1, 0]))
+    angley = -calc_angle(corner_ll - corner_ul, np.array([0, -1]))
+    angles = np.array([anglex, angley])
+    angle = angles[np.argmax(np.abs(angles))]
+    print(f"angle={angle} anglex={anglex} angley={angley}")
     M_rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     return M_rotation @ point
 
 
-def translate(point : np.ndarray, corner1 : np.ndarray) -> np.ndarray:
+def translate(point: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
     """
     Translate `point` to fit the 
     
     Parameters
     ----------
     point : np.ndarray
-    corner1 : np.ndarray
+    corner_ll : np.ndarray
 
     Returns
     -------
     point : np.ndarray
         Translated point.
     """
-    return point + corner1
+    return point + corner_ll
 
 
-def transform(pointpx, corner1, corner2, corner3, corner4, imagesize):
+def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     """
     Transform `pointpx` from pixel-coordinate-space into long/lat-coordinate-space.
 
@@ -81,14 +92,12 @@ def transform(pointpx, corner1, corner2, corner3, corner4, imagesize):
     ----------
     pointpx : np.ndarray
         The image-point with x, y pixel coordinates.
-    corner1 : np.ndarray
+    corner_ur : np.ndarray
         The upper-right corner in long/lat space.
-    corner2 : np.ndarray
+    corner_ul : np.ndarray
         The upper-left corner in long/lat space.
-    corner3 : np.ndarray
-        The lower-left corner in long/lat space. (not actually needed!)
-    corner4 : np.ndarray
-        The lower-right corner in long/lat space.
+    corner_ll : np.ndarray
+        The lower-left corner in long/lat space.
     imagesize : np.ndarray
         The (x, y) size of the image in pixels.
 
@@ -97,20 +106,49 @@ def transform(pointpx, corner1, corner2, corner3, corner4, imagesize):
     point : np.ndarray
         The point in lat/long coordinate space.
     """
-    point = scale(pointpx, corner1, corner2, corner4, imagesize)
-    point = rotate(point, corner1, corner2)
-    point = translate(point, corner1)
+    point = scale(pointpx,
+                  corner_ur=corner_ur,
+                  corner_ul=corner_ul,
+                  corner_ll=corner_ll,
+                  imagesize=imagesize)
+    point = rotate(point, corner_ur, corner_ul, corner_ll)
+    point = translate(point, corner_ur)
     return point
 
 
 def visualize():
     """ Visualize the transformation steps on example input. """
-    corner1 = np.array([26.49, 3.82])
-    corner2 = np.array([25.54, 3.83])
-    corner3 = np.array([25.54, 3.75])
-    corner4 = np.array([26.49, 3.74])
-    corners = np.column_stack((corner1, corner2, corner3, corner4))
-    imagesize = np.array([52224, 5064]) // 10
+    # corner1 = np.array([26.49, 3.82])
+    # corner2 = np.array([25.54, 3.83])
+    # corner3 = np.array([25.54, 3.75])
+    # corner4 = np.array([26.49, 3.74])
+    # corners = np.column_stack((corner1, corner2, corner3, corner4))
+    # imagesize = np.array([52224, 5064]) // 10
+    from numpy import array
+    a = eval("""(
+        [array([ 1213.25018311, 50283.76699829]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 1069.20169067, 47749.85971069]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 5774.96826172, 44479.32678223]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 1445.67004395, 42035.75231934]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 2532.        , 41902.60980225]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 5623.76196289, 39992.25012207]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([  910.7706604 , 33793.68363953]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 2962.61135864, 30680.63146973]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 2440.19158936, 26486.56188965]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 3830.57794189, 24590.31072235]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 2597.1034317 , 23808.47906494]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 2532.        , 10459.66265869]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 4220.        , 10395.95028687]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([4807.8203125 , 7929.60699463]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([4726.63311768, 5713.96124268]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([ 844.        , 4983.78283691]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
+        [array([3738.62582397, 2790.93508911]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])])""")
+    points = np.array([x[0] for x in a])
+    corner_ur = [x[1] for x in a][0]
+    corner_ul = [x[2] for x in a][0]
+    corner_ll = [x[3] for x in a][0]
+    imagesize = [x[4] for x in a][0]
+    corners = np.column_stack((corner_ur, corner_ul, corner_ll))
 
     # --- plot corners --- #
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
@@ -125,14 +163,21 @@ def visualize():
     v = np.random.random(xs.size) * 50
 
     # --- plot pixels --- #
-    plt.scatter(xs, ys, s=v)
+    #plt.scatter(xs, ys, s=v)
+    v = np.random.random(len(points)) * 50
+    plt.scatter(points[:, 0], points[:, 1], s=v)
     plt.title("Pixels")
     plt.show()
 
-    points = np.column_stack((xs, ys))
+
+    #points = np.column_stack((xs, ys))
 
     # --- Calc scaled points --- #
-    points_scaled = np.array([scale(p, corner1, corner2, corner4, imagesize) for p in points])
+    points_scaled = np.array([scale(p,
+                                    corner_ur=corner_ur,
+                                    corner_ul=corner_ul,
+                                    corner_ll=corner_ll,
+                                    imagesize=imagesize) for p in points])
     plt.scatter(points_scaled[:, 0], points_scaled[:, 1], s=v)
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled")
@@ -141,7 +186,10 @@ def visualize():
     plt.show()
 
     # --- Calc rotation --- #
-    points_rotated = np.array([rotate(p, corner1, corner2) for p in points_scaled])
+    points_rotated = np.array([rotate(p,
+                                      corner_ur=corner_ur,
+                                      corner_ul=corner_ul,
+                                      corner_ll=corner_ll) for p in points_scaled])
     plt.scatter(points_rotated[:, 0], points_rotated[:, 1], s=v)
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled and rotated")
@@ -150,7 +198,8 @@ def visualize():
     plt.show()
 
     # --- Calc Translation --- #
-    points_translated = np.array([translate(p, corner1) for p in points_rotated])
+    points_translated = np.array([translate(p,
+                                            corner_ll=corner_ll) for p in points_rotated])
     plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v)
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Complete transformation")
@@ -159,7 +208,7 @@ def visualize():
     plt.show()
 
     # --- Calc all together --- #
-    points_transformed = np.array([transform(p, corner1, corner2, corner3, corner4, imagesize) for p in points])
+    points_transformed = np.array([transform(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
     plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v)
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Complete transformation -- all at once")
@@ -167,3 +216,98 @@ def visualize():
     plt.ylabel("latitude")
     plt.show()
 
+
+class TestData(NamedTuple):
+    corner1: np.ndarray
+    corner2: np.ndarray
+    corner3: np.ndarray
+    corner4: np.ndarray
+    imagesize: np.ndarray
+
+
+def test_data_case_0():
+    corner1 = np.array([26.49, 3.82])
+    corner2 = np.array([25.54, 3.83])
+    corner3 = np.array([25.54, 3.75])
+    corner4 = np.array([26.49, 3.74])
+    imagesize = np.array([52224, 5064]) // 10
+    return TestData(corner1=corner1,
+                    corner2=corner2,
+                    corner3=corner3,
+                    corner4=corner4,
+                    imagesize=imagesize)
+
+
+def test_data_case_1():
+    """
+    Product	M1282472090RE
+    Pds dataset name	LRO-L-LROC-2-EDR-V1.0
+    Pds volume name	LROLRC_0035
+    Instrument host	LRO
+    Instrument	LROC
+    Original product	nacr001ddcd5
+    Product version	v1.8
+    Mission phase name	THIRD EXTENDED SCIENCE MISSION
+    Rationale desc	TARGET OF OPPORTUNITY
+    Data quality	0
+    Nac preroll start time	(DOY:152) 2018-06-01T06:00:23
+    Start time	(DOY:152) 2018-06-01T06:00:23
+    Stop time	(DOY:152) 2018-06-01T06:00:52
+    Spacecraft clock partition	1
+    Nac spacecraft clock preroll count	549525622:64684
+    Spacecraft clock start count	549525623:36862
+    Spacecraft clock stop count	549525652:59738
+    Target name	MOON
+    Orbit number	40257
+    Slew angle	0.00887697075602033
+    Lro node crossing	A
+    Lro flight direction	-X
+    Nac line exposure duration	0.000559466666666667
+    Nac frame	RIGHT
+    Nac dac reset	190
+    Nac channel a offset	12
+    Nac channel b offset	74
+    Instrument mode code	7
+    Compand select code	3
+    Mode compression	true
+    Mode test	false
+    Nac temperature scs	7.899
+    Nac temperature fpa	19.374
+    Nac temperature fpga	-8.109
+    Nac temperature telescope	8.132
+    Image lines	52224
+    Line samples	5064
+    Sample bits	8
+    Scaled pixel width	0.84
+    Scaled pixel height	0.88
+    Resolution	0.856571977678108
+    Emission angle	1.16
+    Incidence angle	27.61
+    Phase angle	26.45
+    North azimuth	87.76
+    Sub solar azimuth	179.78
+    Sub solar latitude	-1.33
+    Sub solar longitude	331.3
+    Sub spacecraft latitude	0.14
+    Sub spacecraft longitude	358.82
+    Solar distance	152038784.5
+    Solar longitude	306.07
+    Center latitude	0.14
+    Center longitude	358.87
+    Upper right latitude	0.91
+    Upper right longitude	358.9
+    Lower right latitude	-0.61
+    Lower right longitude	358.98
+    Lower left latitude	-0.62
+    Lower left longitude	358.84
+    Upper left latitude	0.9
+    Upper left longitude	358.76
+    Spacecraft altitude	83.76
+    Target center distance	1821.08
+    """
+
+    return TestData(corner1=np.array([0.91, 358.9]),
+                    corner2=np.array([-0.61, 358.98]),
+                    corner3=np.array([-0.62, 358.84]),
+                    corner4=np.array([358.84, 358.76]),
+                    imagesize=np.array([52224, 5064]))
