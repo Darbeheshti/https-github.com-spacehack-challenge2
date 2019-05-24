@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from osgeo import ogr
+from metadata import MetaData
 
 # keras tensorflow etc are missing
 
@@ -60,43 +61,6 @@ image_list = glob.glob('./input/*.tif')
 meta_list = glob.glob('./input/*.txt')
 
 
-class MetaData:
-    def __init__(self, mata_data):
-        self.ul_lon = mata_data[8]
-        self.ul_lat_orig = mata_data[7]
-
-        self.ur_lon = mata_data[2]
-        self.ur_lat_orig = mata_data[1]
-
-        self.ll_lon = mata_data[6]
-        self.ll_lat_orig = mata_data[5]
-
-        self.lr_lon = mata_data[4]
-        self.lr_lat_orig = mata_data[3]
-
-        self.pix = mata_data[0]  # NAC spatial resolution
-
-        # ___________________________________________________________________________________________________
-        # %% 6c) Latitude normalization
-        # bring lat to 0-180 degree range to avoid edge effects
-        if self.ul_lat_orig > 0:
-            self.ul_lat = self.ul_lat_orig + 90
-        if self.ur_lat_orig > 0:
-            self.ur_lat = self.ur_lat_orig + 90
-        if self.lr_lat_orig > 0:
-            self.lr_lat = self.lr_lat_orig + 90
-        if self.ll_lat_orig > 0:
-            self.ll_lat = self.ll_lat_orig + 90
-        if self.ul_lat_orig < 0:
-            self.ul_lat = 90 - self.ul_lat_orig * (-1)
-        if self.ur_lat_orig < 0:
-            self.ur_lat = 90 - self.ur_lat_orig * (-1)
-        if self.lr_lat_orig < 0:
-            self.lr_lat = 90 - self.lr_lat_orig * (-1)
-        if self.ll_lat_orig < 0:
-            self.ll_lat = 90 - self.ll_lat_orig * (-1)
-
-
 def create_meta_obj(file_name):
     return MetaData(np.loadtxt(file_name))
 
@@ -138,107 +102,12 @@ def process_image(parent, meta_data):
     class_type = img_coord_split[5]
 
     # ___________________________________________________________________________________________________
-    # %% 6d) Parent orientation
-    # System determination, does NAC cross -180-180 cut?
-    if meta_data.ul_lon - meta_data.ur_lon > 300:  # SPECIAL LON CASE
-        system = 1
-    if meta_data.ul_lon - meta_data.ur_lon < -300:  # SPECIAL LON CASE
-        system = 1
-    if meta_data.ul_lon - meta_data.ur_lon < 300:  # NORMAL LON CASE
-        system = 2
-    if meta_data.ul_lon - meta_data.ur_lon > -300:  # NORMAL LON CASE
-        system = 2
-    # ___________________________________________________________________________________________________
-    # %% 6e) NAC ORIENTATION - NORMAL LONGITUDE CASE
-    if system == 2:
-        if meta_data.ul_lon < meta_data.ur_lon and meta_data.ul_lat > meta_data.ll_lat:
-            subject = 1
-            corner_ul_lon = meta_data.ul_lon
-            corner_ur_lon = meta_data.ur_lon
-            corner_ll_lon = meta_data.ll_lon
-
-            corner_ul_lat = meta_data.ul_lat
-            corner_ur_lat = meta_data.ur_lat
-            corner_ll_lat = meta_data.ll_lat
-
-        if meta_data.ul_lon < meta_data.ur_lon and meta_data.ul_lat < meta_data.ll_lat:
-            subject = 3
-            corner_ul_lon = meta_data.ul_lon
-            corner_ur_lon = meta_data.ur_lon
-            corner_ll_lon = meta_data.ll_lon
-
-            corner_ul_lat = meta_data.ll_lat
-            corner_ur_lat = meta_data.lr_lat
-            corner_ll_lat = meta_data.ul_lat
-
-        if meta_data.ul_lon > meta_data.ur_lon and meta_data.ul_lat > meta_data.ll_lat:
-            subject = 2
-            corner_ul_lon = meta_data.ur_lon
-            corner_ur_lon = meta_data.ul_lon
-            corner_ll_lon = meta_data.lr_lon
-
-            corner_ul_lat = meta_data.ul_lat
-            corner_ur_lat = meta_data.ur_lat
-            corner_ll_lat = meta_data.ll_lat
-
-        if meta_data.ul_lon > meta_data.ur_lon and meta_data.ul_lat < meta_data.ll_lat:
-            subject = 4
-            corner_ul_lon = meta_data.ur_lon
-            corner_ur_lon = meta_data.ul_lon
-            corner_ll_lon = meta_data.lr_lon
-
-            corner_ul_lat = meta_data.ll_lat
-            corner_ur_lat = meta_data.lr_lat
-            corner_ll_lat = meta_data.ul_lat
-    # ___________________________________________________________________________________________________
-    # %% 6f) NAC ORIENTATION - SPECIAL LONGITUDE-BORDER CASE
-    if system == 1:
-        if meta_data.ul_lon < meta_data.ur_lon and meta_data.ul_lat > meta_data.ll_lat:
-            subject = 2
-            corner_ul_lon = meta_data.ur_lon
-            corner_ur_lon = meta_data.ul_lon
-            corner_ll_lon = meta_data.lr_lon
-
-            corner_ul_lat = meta_data.ul_lat
-            corner_ur_lat = meta_data.ur_lat
-            corner_ll_lat = meta_data.ll_lat
-
-        if meta_data.ul_lon < meta_data.ur_lon and meta_data.ul_lat < meta_data.ll_lat:
-            subject = 4
-            corner_ul_lon = meta_data.ur_lon
-            corner_ur_lon = meta_data.ul_lon
-            corner_ll_lon = meta_data.lr_lon
-
-            corner_ul_lat = meta_data.ll_lat
-            corner_ur_lat = meta_data.lr_lat
-            corner_ll_lat = meta_data.ul_lat
-
-        if meta_data.ul_lon > meta_data.ur_lon and meta_data.ul_lat > meta_data.ll_lat:
-            subject = 1
-            corner_ul_lon = meta_data.ul_lon
-            corner_ur_lon = meta_data.ur_lon
-            corner_ll_lon = meta_data.ll_lon
-
-            corner_ul_lat = meta_data.ul_lat
-            corner_ur_lat = meta_data.ur_lat
-            corner_ll_lat = meta_data.ll_lat
-
-        if meta_data.ul_lon > meta_data.ur_lon and meta_data.ul_lat < meta_data.ll_lat:
-            subject = 3
-            corner_ul_lon = meta_data.ul_lon
-            corner_ur_lon = meta_data.ur_lon
-            corner_ll_lon = meta_data.ll_lon
-
-            corner_ul_lat = meta_data.ll_lat
-            corner_ur_lat = meta_data.lr_lat
-            corner_ll_lat = meta_data.ul_lat
-    # ___________________________________________________________________________________________________
     # %% 6g) Calculations
     dimensions = parent.shape
     x_len = dimensions[1]
     y_len = dimensions[0]
-    x_deg_len = corner_ur_lon - corner_ul_lon
-    y_deg_len = corner_ul_lat - corner_ll_lat
+    x_deg_len = meta_data.corner_ur_lon - meta_data.corner_ul_lon
+    y_deg_len = meta_data.corner_ul_lat - meta_data.corner_ll_lat
     deg_per_pix_xdir = x_deg_len / x_len
     deg_per_pix_ydir = y_deg_len / y_len
     # LON NAC rotation correction - appears not to help accuracy, subject to change!
@@ -263,24 +132,24 @@ def process_image(parent, meta_data):
         for rec_ul_x, rec_ul_y in zip(upper_left_x, upper_left_y):
             # print(rec_ul_x, rec_ul_y)
 
-            if subject == 1:  # NO CHANGE
+            if meta_data.subject == 1:  # NO CHANGE
                 rec_ul_x_corr = rec_ul_x
                 rec_ul_y_corr = rec_ul_y
 
-            if subject == 2:  # X FLIP
+            if meta_data.subject == 2:  # X FLIP
                 rec_ul_x_corr = x_len - rec_ul_x
                 rec_ul_y_corr = rec_ul_y
 
-            if subject == 3:  # Y FLIP
+            if meta_data.subject == 3:  # Y FLIP
                 rec_ul_x_corr = rec_ul_x
                 rec_ul_y_corr = y_len - rec_ul_y
 
-            if subject == 4:  # XY FLIP
+            if meta_data.subject == 4:  # XY FLIP
                 rec_ul_x_corr = x_len - rec_ul_x
                 rec_ul_y_corr = y_len - rec_ul_y
 
-            rec_ul_lon = (rec_ul_x_corr * deg_per_pix_xdir) + corner_ul_lon
-            rec_ul_lat = -1 * (rec_ul_y_corr * deg_per_pix_ydir) + corner_ul_lat - 90  # 90 degree correction lifted
+            rec_ul_lon = (rec_ul_x_corr * deg_per_pix_xdir) + meta_data.corner_ul_lon
+            rec_ul_lat = -1 * (rec_ul_y_corr * deg_per_pix_ydir) + meta_data.corner_ul_lat - 90  # 90 degree correction lifted
 
             x_length_array = abs(lower_right_x - upper_left_x)  # bbox x dimension
             y_length_array = abs(lower_right_y - upper_left_y)  # bbox y dimension
