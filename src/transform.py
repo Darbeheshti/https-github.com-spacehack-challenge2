@@ -62,7 +62,6 @@ def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corn
     angley = -calc_angle(corner_ll - corner_ul, np.array([0, -1]))
     angles = np.array([anglex, angley])
     angle = angles[np.argmax(np.abs(angles))]
-    print(f"angle={angle} anglex={anglex} angley={angley}")
     M_rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     return M_rotation @ point
 
@@ -112,7 +111,7 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
                   corner_ll=corner_ll,
                   imagesize=imagesize)
     point = rotate(point, corner_ur, corner_ul, corner_ll)
-    point = translate(point, corner_ur)
+    point = translate(point, corner_ll)
     return point
 
 
@@ -179,7 +178,9 @@ def visualize():
                                     corner_ll=corner_ll,
                                     imagesize=imagesize) for p in points])
     plt.scatter(points_scaled[:, 0], points_scaled[:, 1], s=v)
-    plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    plt.xlim((0, 1.0))
+    plt.ylim((0, 1.0))
+    #plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled")
     plt.xlabel("longitude")
     plt.ylabel("latitude")
@@ -191,9 +192,12 @@ def visualize():
                                       corner_ul=corner_ul,
                                       corner_ll=corner_ll) for p in points_scaled])
     plt.scatter(points_rotated[:, 0], points_rotated[:, 1], s=v)
-    plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    plt.scatter(points_scaled[:, 0], points_scaled[:, 1], s=v, c='#FF0000AA')
+    plt.xlim((0, 1.0))
+    plt.ylim((0, 1.0))
+    #plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled and rotated")
-    plt.xlabel("longitude")
+    plt.xlabel("lat")
     plt.ylabel("latitude")
     plt.show()
 
@@ -203,14 +207,18 @@ def visualize():
     plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v)
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Complete transformation")
-    plt.xlabel("longitude")
-    plt.ylabel("latitude")
+    plt.xlabel("latitude")
+    plt.ylabel("longitude")
+    plt.xlim((3.5, 3.5+1.3))
+    plt.ylim((115.4, 116.7))
     plt.show()
 
     # --- Calc all together --- #
     points_transformed = np.array([transform(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
-    plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v)
+    plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=v)
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    plt.xlim((3.5, 3.5 + 1.3))
+    plt.ylim((115.4, 116.7))
     plt.title("Complete transformation -- all at once")
     plt.xlabel("longitude")
     plt.ylabel("latitude")
