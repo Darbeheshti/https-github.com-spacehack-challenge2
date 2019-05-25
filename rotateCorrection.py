@@ -3,11 +3,17 @@ class Vector2D:
         self.lon = lon / xDim
         self.lat = lat / yDim
 
-    def goRight(self,xCoord):
-        return (self.lon*xCoord, self.lat*xCoord)
+    def goRightLon(self,xCoord):
+        return self.lon*xCoord
 
-    def goDown(self,yCoord):
-        return (self.lon*yCoord, self.lat*yCoord)
+    def goRightLat(self,xCoord):
+        return self.lat*xCoord
+
+    def goDownLon(self,yCoord):
+        return self.lon*yCoord
+
+    def goDownLat(self,yCoord):
+        return self.lat*yCoord
 
 def calculateGlobalCoord(self, meta_data, parent,rockCoord):
     dimensions = parent.shape
@@ -26,7 +32,7 @@ def vector_converter(pointpx, top_right, top_left, bottom_left, bottom_right, im
     vRight = Vector2D(top_right[0] - top_left[0],top_right[1] - top_left[1],imagesize[0],imagesize[1])
     vDown = Vector2D(bottom_left[0] - top_left[0],bottom_left[1] - top_left[1], imagesize[0],imagesize[1])
 
-    goXDirection = (top_right[0] + vRight.goRight(pointpx[0]), top_right[1] + vRight.goRight(pointpx[0]))
-    goYDirection = (goXDirection[0] + vDown.goDown(pointpx[1]), goXDirection[1] + vDown.goDown(pointpx[1]))
+    goXDirection = (top_left[0] + vRight.goRightLon(pointpx[0]), top_left[1] + vRight.goRightLat(pointpx[0]))
+    goYDirection = (goXDirection[0] + vDown.goDownLon(pointpx[1]), goXDirection[1] + vDown.goDownLat(pointpx[1]))
 
     return goYDirection[0], goYDirection[1]
