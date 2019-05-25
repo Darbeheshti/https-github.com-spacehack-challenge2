@@ -105,6 +105,11 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     point : np.ndarray
         The point in lat/long coordinate space.
     """
+    if not 0 <= pointpx[0] <= imagesize[0]:
+        print(f"[WARNING] point x coordinate (={pointpx[0]}) not in image-width (={imagesize[0]})")
+    if not 0 <= pointpx[1] <= imagesize[1]:
+        print(f"[WARNING] point y coordinate (={pointpx[1]}) not in image-height (={imagesize[1]})")
+
     point = scale(pointpx,
                   corner_ur=corner_ur,
                   corner_ul=corner_ul,
@@ -152,8 +157,8 @@ def visualize():
     # --- plot corners --- #
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Corners")
-    plt.xlabel("longitude")
-    plt.ylabel("latitude")
+    plt.xlabel("latitude")
+    plt.ylabel("longitude")
     plt.show()
 
     nxs, nys = imagesize[0] + 1, imagesize[1] + 1
@@ -182,8 +187,8 @@ def visualize():
     plt.ylim((0, 1.0))
     #plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled")
-    plt.xlabel("longitude")
-    plt.ylabel("latitude")
+    plt.xlabel("latitude")
+    plt.ylabel("longitude")
     plt.show()
 
     # --- Calc rotation --- #
@@ -197,8 +202,8 @@ def visualize():
     plt.ylim((0, 1.0))
     #plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled and rotated")
-    plt.xlabel("lat")
-    plt.ylabel("latitude")
+    plt.xlabel("latitude")
+    plt.ylabel("longitude")
     plt.show()
 
     # --- Calc Translation --- #
@@ -220,8 +225,8 @@ def visualize():
     plt.xlim((3.5, 3.5 + 1.3))
     plt.ylim((115.4, 116.7))
     plt.title("Complete transformation -- all at once")
-    plt.xlabel("longitude")
-    plt.ylabel("latitude")
+    plt.xlabel("latitude")
+    plt.ylabel("longitude")
     plt.show()
 
 
