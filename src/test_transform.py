@@ -5,6 +5,7 @@ import numpy as np
 import sys
 sys.path.insert(0, '../')
 
+import pdb
 
 import rotateCorrection as rc
 
@@ -48,7 +49,7 @@ def simple_angle_converter(pointpx, top_right, top_left, bottom_left, bottom_rig
     angle_est2 = _angle(bl[0], bl[1], br[0], br[1])
     
     angle = (angle_est1+angle_est2)/2
-        
+    print(f"angle: {angle}")
     rot_matrix = np.array([[np.cos(angle), -np.sin(angle)],
                            [np.sin(angle), np.cos(angle)]])
     
@@ -101,7 +102,7 @@ class TestTransformLukas(unittest.TestCase):
 
 
 
-class TestTransform(unittest.TestCase):
+class TestBasicTransform(unittest.TestCase):
 	def test_unrotated_picture(self):
 		width = 10
 		height = 60
@@ -136,6 +137,18 @@ class TestTransform(unittest.TestCase):
 		res = simple_angle_converter(np.array([width,height]), top_right, top_left,
 			bottom_left, bottom_right, np.array([width, height]))
 		self.assertTrue(np.allclose(res, bottom_right))
+
+	def test_fourtyFive_deg(self):
+		width = 100
+		height = 100
+
+		top_left = np.array([50,50])
+		bottom_left = np.array([40,40])
+		bottom_right = np.array([50,30])
+		top_right = np.array([60,40])
+
+		res = simple_angle_converter((50,50),top_right,top_left, bottom_left, bottom_right, (width,height))
+		self.assertTrue(np.allclose(res, (40,40)))
 
 
 class TestTransformVectorTransform(unittest.TestCase):
