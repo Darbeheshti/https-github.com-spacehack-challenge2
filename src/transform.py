@@ -82,6 +82,16 @@ def translate(point: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
     """
     return point + corner_ll
 
+def transform_old(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
+    x_deg_len = corner_ur[0] - corner_ul[0]
+    y_deg_len = corner_ul[1] - corner_ll[1]
+    deg_per_pix_xdir = x_deg_len / imagesize[0]
+    deg_per_pix_ydir = y_deg_len / imagesize[1]
+
+    x = imagesize[0] - pointpx[0]
+    rec_ul_lon = (x * deg_per_pix_xdir) + corner_ul[0]
+    lat = -1 * (pointpx[1] * deg_per_pix_ydir) + corner_ul[1]
+    return np.array([rec_ul_lon, lat])
 
 def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     """
