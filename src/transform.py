@@ -152,7 +152,7 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     if not 0 <= pointpx[1] <= imagesize[1]:
         print(f"[WARNING] point y coordinate (={pointpx[1]}) not in image-height (={imagesize[1]})")
 
-    pointpx[0] = imagesize[0] - pointpx[0]
+    #pointpx[0] = imagesize[0] - pointpx[0]
 
     point = scale(pointpx,
                   corner_ur=corner_ur,
@@ -194,8 +194,8 @@ def visualize():
         [array([ 844.        , 4983.78283691]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([3738.62582397, 2790.93508911]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])])""")
     points = np.array([x[0] for x in a])
-    offset = np.array([3.7, 116])
-    #offset = np.array([0, 0])
+    #offset = np.array([3.7, 116])
+    offset = np.array([0, 0])
     corner_ur = [x[1] for x in a][0] - offset
     corner_ul = [x[2] for x in a][0] - offset
     corner_ll = [x[3] for x in a][0] - offset
@@ -287,9 +287,9 @@ def visualize():
     points_transformed_old = np.array([transform_old(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4), label='Corners')
     plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=v, label="Our algorithm")
-    #plt.scatter(points_transformed_old[:, 0], points_transformed[:, 1], s=v, label="Old algorithm")
-    #plt.xlim((3.5 - offset[0], 3.5 + 1.3 - offset[0]))
-    #plt.ylim((115.4 - offset[1], 116.7 - offset[1]))
+    plt.scatter(points_transformed_old[:, 0], points_transformed[:, 1], s=v, label="Old algorithm")
+    plt.xlim((3.5 - offset[0], 3.5 + 1.3 - offset[0]))
+    plt.ylim((115.4 - offset[1], 116.7 - offset[1]))
     plt.title("Complete transformation -- all at once")
     plt.xlabel("longitude")
     plt.ylabel("latitude + 90")
