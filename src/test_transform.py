@@ -197,7 +197,7 @@ class TestTransformVectorTransform(unittest.TestCase):
 		top_right = np.array([60,40])
 
 		res = rc.vector_converter((50,50),top_right,top_left, bottom_left, bottom_right, (width,height))
-		self.assertTrue(np.allclose(res, (40,40)))
+		self.assertTrue(np.allclose(res, (50,40)))
 
 #	def test_north_poll_edge_case(self):
 #		self.fail()
