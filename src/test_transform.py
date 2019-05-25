@@ -16,8 +16,15 @@ def _angle(x1, y1, x2, y2):
         return -np.arctan(abs(dy)/dx)
 
 def simple_angle_converter(pointpx, top_right, top_left, bottom_left, bottom_right, imagesize):
+    """
+    All coordinate tuples are in (x, y) i.e. (lon, lat) convention.
+    pointpx (x, y): pixel coordinates counted from top left corner.
+    top_right, top_left, bottom_left, bottom_right: (lon, lat) pairs
+
+    imagesize: (width, height) tuple
+    """
     # first wrangle inputs
-    image_height, image_width = imagesize
+    image_width, image_height  = imagesize
     px, py = pointpx
     tr, tl, bl, br = top_right, top_left, bottom_left, bottom_right
     # now start converting
