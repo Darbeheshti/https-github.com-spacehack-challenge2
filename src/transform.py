@@ -13,11 +13,11 @@ def scale(pointpx: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, cor
     pointpx : np.ndarray
         X and Y value of the pixel to be scaled.
     corner_ur : np.ndarray
-        The upper-right corner in long/lat space.
+        The upper-right corner in (long, lat) space.
     corner_ul : np.ndarray
-        The upper-left corner in long/lat space.
+        The upper-left corner in (long, lat) space.
     corner_ll : np.ndarray
-        The lower-right corner in long/lat space.
+        The lower-right corner in (long, lat) space.
     imagesize : np.ndarray
         The X and Y size of the input-image in pixels.
 
@@ -46,11 +46,11 @@ def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corn
     point : np.ndarray
         X and Y value of the point.
     corner_ur : np.ndarray
-        The upper-right corner in long/lat space.
+        The upper-right corner in (long, lat) space.
     corner_ul : np.ndarray
-        The upper-right corner in long/lat space.
+        The upper-right corner in (long, lat) space.
     corner_ll : np.ndarray
-        The lower-left corner in long/lat space.
+        The lower-left corner in (long, lat) space.
 
     Returns
     -------
@@ -85,18 +85,18 @@ def translate(point: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
 
 def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     """
-    Transform `pointpx` from pixel-coordinate-space into long/lat-coordinate-space.
+    Transform `pointpx` from pixel-coordinate-space into (long, lat)-coordinate-space.
 
     Parameters
     ----------
     pointpx : np.ndarray
         The image-point with x, y pixel coordinates.
     corner_ur : np.ndarray
-        The upper-right corner in long/lat space.
+        The upper-right corner in (long, lat) space.
     corner_ul : np.ndarray
-        The upper-left corner in long/lat space.
+        The upper-left corner in (long, lat) space.
     corner_ll : np.ndarray
-        The lower-left corner in long/lat space.
+        The lower-left corner in (long, lat) space.
     imagesize : np.ndarray
         The (x, y) size of the image in pixels.
 
@@ -220,8 +220,8 @@ def visualize():
 
     # --- Calc all together --- #
     points_transformed = np.array([transform(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
-    plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=v)
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=v)
     plt.xlim((3.5, 3.5 + 1.3))
     plt.ylim((115.4, 116.7))
     plt.title("Complete transformation -- all at once")
