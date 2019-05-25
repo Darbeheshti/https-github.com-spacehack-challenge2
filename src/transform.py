@@ -118,9 +118,9 @@ def transform_old(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     deg_per_pix_xdir = x_deg_len / imagesize[0]
     deg_per_pix_ydir = y_deg_len / imagesize[1]
 
-    x = imagesize[0] - pointpx[0]
+    x = pointpx[0]
     rec_ul_lon = (x * deg_per_pix_xdir) + corner_ul[0]
-    lat = -1 * (pointpx[1] * deg_per_pix_ydir) + corner_ul[1]
+    lat = -1 * ((imagesize[1] - pointpx[1]) * deg_per_pix_ydir) + corner_ul[1]
     return np.array([rec_ul_lon, lat])
 
 
