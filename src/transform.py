@@ -92,7 +92,6 @@ def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corn
     anglex = calc_angle(vec_top, axis_top)
     angley = calc_angle(vec_left, axis_left)
     angles = np.array([anglex, angley])
-    print(angles)
     angle = angles[np.argmax(np.abs(angles))]
     M_rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     return M_rotation @ point
@@ -100,7 +99,7 @@ def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corn
 
 def translate(point: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
     """
-    Translate `point` to fit the 
+    Translate `point` to transform it into the (long, lat) coordinate space.
     
     Parameters
     ----------
@@ -116,6 +115,22 @@ def translate(point: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
 
 
 def transform_old(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
+    """
+    Use interpolation as transformation. Is quite inaccurate for tilted images.
+
+    Parameters
+    ----------
+    pointpx
+    corner_ur
+    corner_ul
+    corner_ll
+    imagesize
+
+    Returns
+    -------
+    point : np.ndarray
+        Transformed `point`
+    """
     x_deg_len = corner_ur[0] - corner_ul[0]
     y_deg_len = corner_ul[1] - corner_ll[1]
     deg_per_pix_xdir = x_deg_len / imagesize[0]
@@ -130,6 +145,7 @@ def transform_old(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
 def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     """
     Transform `pointpx` from pixel-coordinate-space into (long, lat)-coordinate-space.
+    Does not deal with shear.
 
     Parameters
     ----------
@@ -153,6 +169,7 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     if not 0 <= pointpx[0] <= imagesize[0]:
         print(f"[WARNING] point x coordinate (={pointpx[0]}) not in image-width (={imagesize[0]})")
     if not 0 <= pointpx[1] <= imagesize[1]:
+    if not 0 <= pointpx[1] <= imagesize[1]:
         print(f"[WARNING] point y coordinate (={pointpx[1]}) not in image-height (={imagesize[1]})")
 
     # pointpx[0] = imagesize[0] - pointpx[0]
@@ -170,6 +187,21 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
 
 
 def make_points(imagesize):
+    """
+    Make points to visualize pixels in the input-image.
+
+    Parameters
+    ----------
+    imagesize : np.ndarray
+        Pixel size.
+
+    Returns
+    -------
+    points : np.ndarray
+        Points in pixel-space.
+    v : np.ndarray
+        A visualization parameter to distinguish the points, e.g. brightness.
+    """
     nxs, nys = imagesize[0] + 1, imagesize[1] + 1
     xs, ys = np.mgrid[0:nxs:40 * 1j, 0:nys:40 * 1j]
     xs, ys = xs.flatten(), ys.flatten()
@@ -177,9 +209,8 @@ def make_points(imagesize):
     return np.column_stack((xs, ys)), v
 
 
-def visualize():
-    """ Visualize the transformation steps on example input. """
-    inputb = eval("""(
+def getinput_a():
+    return eval("""(
         [array([ 1213.25018311, 50283.76699829]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([ 1069.20169067, 47749.85971069]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([ 5774.96826172, 44479.32678223]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
@@ -198,12 +229,19 @@ def visualize():
         [array([ 844.        , 4983.78283691]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([3738.62582397, 2790.93508911]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])])""")
 
-    inputa = eval("""([array([1090.2268219 , 4951.45690823]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
+
+def getinput_b():
+    return eval("""([array([1090.2268219 , 4951.45690823]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
     ,[array([ 4420.54425049, 13048.45074463]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
     ,[array([ 4425.96748352, 14084.15847778]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
     ,[array([ 4395.55039978, 14317.54650879]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
     ,[array([ 4346.92008209, 47847.70596313]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
     )""")
+
+
+def visualize():
+    """ Visualize the transformation steps on example input. """
+    inputa = getinput_b()
     points = np.array([x[0] for x in inputa])
     # offset = np.array([3.7, 116])
     offset = np.array([0, 0])
@@ -365,4 +403,126 @@ def visualize():
     plt.show()
 
 
+def interp(start, end, alpha):
+    """ Interpolate lineraly between `start` and `end`. """
+    return (end - start) * alpha + start
+
+
+def animate_scale(alpha, pointpx: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corner_ll: np.ndarray,
+                  imagesize: np.ndarray):
+    """
+    Scale `pointpx` (interpolated with `alpha`) into the longitude/latitude coordinate space.
+
+    Parameters
+    ----------
+    pointpx : np.ndarray
+        X and Y value of the pixel to be scaled.
+    corner_ur : np.ndarray
+        The upper-right corner in (long, lat) space.
+    corner_ul : np.ndarray
+        The upper-left corner in (long, lat) space.
+    corner_ll : np.ndarray
+        The lower-right corner in (long, lat) space.
+    imagesize : np.ndarray
+        The X and Y size of the input-image in pixels.
+
+    Returns
+    -------
+    point : np.ndarray
+        The scaled point.
+    """
+    realsize = np.array([distance(corner_ur, corner_ul), distance(corner_ul, corner_ll)])
+    scale = realsize / imagesize
+    scale = interp(1, scale, alpha)
+    assert abs((scale[0] - scale[1]) / scale[1]) < 1.0, f"Scale is too different: x-scale={scale[0]} y-scale={scale[1]}"
+    M_scale = np.array([[scale[0], 0], [0, scale[1]]])
+    return M_scale @ pointpx
+
+
+def animated_transform(alpha_scale, alpha_rotation, alpha_translation, point, corner_ur, corner_ul, corner_ll,
+                       imagesize):
+    """
+    Transform `pointpx`  (interpolated with `alpha`) from pixel-coordinate-space into (long, lat)-coordinate-space.
+
+    Parameters
+    ----------
+    point : np.ndarray
+        The image-point with x, y pixel coordinates.
+    corner_ur : np.ndarray
+        The upper-right corner in (long, lat) space.
+    corner_ul : np.ndarray
+        The upper-left corner in (long, lat) space.
+    corner_ll : np.ndarray
+        The lower-left corner in (long, lat) space.
+    imagesize : np.ndarray
+        The (x, y) size of the image in pixels.
+
+    Returns
+    -------
+    point : np.ndarray
+        The point in lat/long coordinate space.
+    """
+    point = point.copy()
+    point_scaled = animate_scale(alpha_scale, point,
+                                 corner_ur=corner_ur,
+                                 corner_ul=corner_ul,
+                                 corner_ll=corner_ll,
+                                 imagesize=imagesize)
+    point_rotated = rotate(point_scaled, corner_ur, corner_ul, corner_ll)
+    point_rotated = interp(point_scaled, point_rotated, alpha_rotation)
+    point_translated = translate(point_rotated, corner_ll)
+    point_translated = interp(point_rotated, point_translated, alpha_translation)
+    if point_translated[0] < 0:
+        point_translated[0] += 360
+    return point_translated
+
+
+def animate(inputa):
+    offset = np.array([0, 0])
+    corner_ur = [x[1] for x in inputa][0] - offset
+    corner_ul = [x[2] for x in inputa][0] - offset
+    corner_ll = [x[3] for x in inputa][0] - offset
+    imagesize = [x[4] for x in inputa][0]
+    if corner_ur[0] < 0:
+        corner_ur[0] += 360
+    elif corner_ur[0] > 360:
+        corner_ur[0] -= 360
+    if corner_ul[0] < 0:
+        corner_ul[0] += 360
+    elif corner_ul[0] > 360:
+        corner_ul[0] -= 360
+    if corner_ll[0] < 0:
+        corner_ll[0] += 360
+    elif corner_ll[0] > 360:
+        corner_ll[0] -= 360
+
+    corners = np.column_stack((corner_ur, corner_ul, corner_ll))
+    pixelpoints, pixelv = make_points(imagesize)
+
+    plt.axis('equal')
+    plt.title("points transformation")
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
+
+    for i, qalpha in enumerate(np.linspace(0, 1, 59)):
+        alpha = qalpha ** (1 / 1000)
+        print(f"i={i}, qalpha={qalpha} alpha={alpha}")
+        points_transformed = np.array([animated_transform(alpha, qalpha, alpha, p,
+                                                          corner_ur=corner_ur,
+                                                          corner_ul=corner_ul,
+                                                          corner_ll=corner_ll,
+                                                          imagesize=imagesize)
+                                       for p in pixelpoints])
+        plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=pixelv, label='Pixels')
+        lim = np.asarray((plt.xlim(), plt.ylim()))
+        plt.scatter(corners[0], corners[1], label='Corners')
+        nlim = np.asarray([plt.xlim(), plt.ylim()])
+        minlim = interp(lim[:, 0], np.minimum(lim[:, 0], nlim[:, 0]), alpha ** 2)
+        maxlim = interp(lim[:, 1], np.maximum(lim[:, 1], nlim[:, 1]), alpha ** 2)
+        plt.xlim((minlim[0], maxlim[0]))
+        plt.ylim((minlim[1], maxlim[1]))
+        plt.legend()
+        plt.savefig(f"Transformation_{i}.png")
+        #plt.show()
+        plt.clf()
 
