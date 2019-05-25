@@ -1,8 +1,3 @@
-class Vector2D:
-    def __init__(self,x,y):
-        self.x = x
-        self.y = y
-
 class Boulder:
     def __init__(self, boulder_data):
         self.upper_left_x = boulder_data.upper_left_x  # img_coord_split[0]
@@ -64,16 +59,3 @@ class Boulder:
 
         self.lon_coord = rec_ul_lon + (self.x_length_array * deg_per_pix_xdir) / 2
         self.lat_coord = rec_ul_lat + (self.y_length_array * deg_per_pix_ydir) / 2
-
-    def calculateGlobalCoord(self,meta_data, parent):
-        dimensions = parent.shape
-        x_len = dimensions[1]
-        y_len = dimensions[0]
-
-
-        vRight = Vector2D()
-
-        x_deg_len = meta_data.corner_ur_lon - meta_data.corner_ul_lon
-        y_deg_len = meta_data.corner_ul_lat - meta_data.corner_ll_lat
-        deg_to_centre_x = x_deg_len / x_len
-        deg_to_centre_y = y_deg_len / y_len
