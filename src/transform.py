@@ -4,7 +4,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def scale(pointpx: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corner_ll: np.ndarray, imagesize: np.ndarray):
+def distance(a: np.ndarray, b: np.ndarray):
+    """ Calculate the distance between `a` and `b`, correction for wraparound in the cordinates."""
+    # x = longitude [0, 360]
+    # y = latitude [-90, 90]
+    a, b = np.array(a), np.array(b)
+    if not -90 <= a[1] <= 90:
+        print(f"[WARNING] latitude is not in [=90, 90] a={a}")
+    if not -90 <= b[1] <= 90:
+        print(f"[WARNING] latitude is not in [=90, 90] b={b}")
+    if not 0 <= a[0] <= 360:
+        print(f"[WARNING] longitude is not in [0, 360] a={a}")
+    if not 0 <= b[0] <= 360:
+        print(f"[WARNING] longitude is not in [0, 360] b={b}")
+
+    diff_norm = np.abs(a - b)
+    diff_wrapped = np.array([360, 180]) - diff_norm
+    diff = np.minimum(diff_norm, diff_wrapped)
+    return np.sqrt(np.sum(diff * diff))
+
+
+def scale(pointpx: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corner_ll: np.ndarray,
+          imagesize: np.ndarray):
     """
     Scale `pointpx` into the longitude/latitude coordinate space.
 
@@ -26,7 +47,7 @@ def scale(pointpx: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, cor
     point : np.ndarray
         The scaled point.
     """
-    realsize = np.array([np.linalg.norm(corner_ur - corner_ul), np.linalg.norm(corner_ul - corner_ll)])
+    realsize = np.array([distance(corner_ur, corner_ul), distance(corner_ul, corner_ll)])
     scale = realsize / imagesize
     assert abs((scale[0] - scale[1]) / scale[1]) < 1.0, f"Scale is too different: x-scale={scale[0]} y-scale={scale[1]}"
     M_scale = np.array([[scale[0], 0], [0, scale[1]]])
@@ -58,8 +79,16 @@ def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corn
         The rotated point.
     """
     # find out what pair of corner to use to determine the roataion
-    anglex = -calc_angle(corner_ul - corner_ur, np.array([-1, 0]))
-    angley = -calc_angle(corner_ll - corner_ul, np.array([0, -1]))
+    vec_top = corner_ul - corner_ur
+    vec_left = corner_ll - corner_ul
+
+    # keep in mind that the coordinates can wrap around.
+    axis_top = np.array([-1, 0]) if vec_top[0] < 0 else np.array([1, 0])
+    axis_left = np.array([0, -1]) if vec_left[1] < 0 else np.array([0, 1])
+
+    # those angles should be similar.
+    anglex = -calc_angle(vec_top, axis_top)
+    angley = -calc_angle(vec_left, axis_left)
     angles = np.array([anglex, angley])
     angle = angles[np.argmax(np.abs(angles))]
     M_rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
@@ -82,6 +111,7 @@ def translate(point: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
     """
     return point + corner_ll
 
+
 def transform_old(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     x_deg_len = corner_ur[0] - corner_ul[0]
     y_deg_len = corner_ul[1] - corner_ll[1]
@@ -92,6 +122,7 @@ def transform_old(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     rec_ul_lon = (x * deg_per_pix_xdir) + corner_ul[0]
     lat = -1 * (pointpx[1] * deg_per_pix_ydir) + corner_ul[1]
     return np.array([rec_ul_lon, lat])
+
 
 def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     """
@@ -115,10 +146,13 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     point : np.ndarray
         The point in lat/long coordinate space.
     """
+    pointpx = pointpx.copy()
     if not 0 <= pointpx[0] <= imagesize[0]:
         print(f"[WARNING] point x coordinate (={pointpx[0]}) not in image-width (={imagesize[0]})")
     if not 0 <= pointpx[1] <= imagesize[1]:
         print(f"[WARNING] point y coordinate (={pointpx[1]}) not in image-height (={imagesize[1]})")
+
+    pointpx[0] = imagesize[0] - pointpx[0]
 
     point = scale(pointpx,
                   corner_ur=corner_ur,
@@ -127,6 +161,8 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
                   imagesize=imagesize)
     point = rotate(point, corner_ur, corner_ul, corner_ll)
     point = translate(point, corner_ll)
+    if point[0] < 0:
+        point[0] += 360
     return point
 
 
@@ -158,17 +194,32 @@ def visualize():
         [array([ 844.        , 4983.78283691]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([3738.62582397, 2790.93508911]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])])""")
     points = np.array([x[0] for x in a])
-    corner_ur = [x[1] for x in a][0]
-    corner_ul = [x[2] for x in a][0]
-    corner_ll = [x[3] for x in a][0]
+    offset = np.array([3.7, 116])
+    #offset = np.array([0, 0])
+    corner_ur = [x[1] for x in a][0] - offset
+    corner_ul = [x[2] for x in a][0] - offset
+    corner_ll = [x[3] for x in a][0] - offset
     imagesize = [x[4] for x in a][0]
+    if corner_ur[0] < 0:
+        corner_ur[0] += 360
+    elif corner_ur[0] > 360:
+        corner_ur[0] -= 360
+    if corner_ul[0] < 0:
+        corner_ul[0] += 360
+    elif corner_ul[0] > 360:
+        corner_ul[0] -= 360
+    if corner_ll[0] < 0:
+        corner_ll[0] += 360
+    elif corner_ll[0] > 360:
+        corner_ll[0] -= 360
+
     corners = np.column_stack((corner_ur, corner_ul, corner_ll))
 
     # --- plot corners --- #
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Corners")
-    plt.xlabel("latitude")
-    plt.ylabel("longitude")
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
     plt.show()
 
     nxs, nys = imagesize[0] + 1, imagesize[1] + 1
@@ -177,28 +228,29 @@ def visualize():
     v = np.random.random(xs.size) * 50
 
     # --- plot pixels --- #
-    #plt.scatter(xs, ys, s=v)
-    v = np.random.random(len(points)) * 50
+    # plt.scatter(xs, ys, s=v)
+    points_flipped = points.copy()
+    points_flipped[:, 0] = imagesize[0] - points[:, 0]
+    v = np.random.random(len(points_flipped)) * 50
     plt.scatter(points[:, 0], points[:, 1], s=v)
     plt.title("Pixels")
     plt.show()
 
-
-    #points = np.column_stack((xs, ys))
+    # points = np.column_stack((xs, ys))
 
     # --- Calc scaled points --- #
     points_scaled = np.array([scale(p,
                                     corner_ur=corner_ur,
                                     corner_ul=corner_ul,
                                     corner_ll=corner_ll,
-                                    imagesize=imagesize) for p in points])
+                                    imagesize=imagesize) for p in points_flipped])
     plt.scatter(points_scaled[:, 0], points_scaled[:, 1], s=v)
     plt.xlim((0, 1.0))
     plt.ylim((0, 1.0))
-    #plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    # plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled")
-    plt.xlabel("latitude")
-    plt.ylabel("longitude")
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
     plt.show()
 
     # --- Calc rotation --- #
@@ -206,37 +258,42 @@ def visualize():
                                       corner_ur=corner_ur,
                                       corner_ul=corner_ul,
                                       corner_ll=corner_ll) for p in points_scaled])
-    plt.scatter(points_rotated[:, 0], points_rotated[:, 1], s=v)
-    plt.scatter(points_scaled[:, 0], points_scaled[:, 1], s=v, c='#FF0000AA')
+    plt.scatter(points_rotated[:, 0], points_rotated[:, 1], s=v, label='rotated')
+    plt.scatter(points_scaled[:, 0], points_scaled[:, 1], s=v, c='#FF0000AA', label='only scaled')
     plt.xlim((0, 1.0))
     plt.ylim((0, 1.0))
-    #plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    # plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled and rotated")
-    plt.xlabel("latitude")
-    plt.ylabel("longitude")
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
+    plt.legend()
     plt.show()
 
     # --- Calc Translation --- #
     points_translated = np.array([translate(p,
                                             corner_ll=corner_ll) for p in points_rotated])
-    plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v)
-    plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v, label='translated')
+    plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4), label='corners')
     plt.title("Complete transformation")
-    plt.xlabel("latitude")
-    plt.ylabel("longitude")
-    plt.xlim((3.5, 3.5+1.3))
-    plt.ylim((115.4, 116.7))
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
+    plt.xlim((3.5-offset[0], 3.5 + 1.3-offset[0]))
+    plt.ylim((115.4-offset[1], 116.7-offset[1]))
+    plt.legend()
     plt.show()
 
     # --- Calc all together --- #
     points_transformed = np.array([transform(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
-    plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
-    plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=v)
-    plt.xlim((3.5, 3.5 + 1.3))
-    plt.ylim((115.4, 116.7))
+    points_transformed_old = np.array([transform_old(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
+    plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4), label='Corners')
+    plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=v, label="Our algorithm")
+    #plt.scatter(points_transformed_old[:, 0], points_transformed[:, 1], s=v, label="Old algorithm")
+    #plt.xlim((3.5 - offset[0], 3.5 + 1.3 - offset[0]))
+    #plt.ylim((115.4 - offset[1], 116.7 - offset[1]))
     plt.title("Complete transformation -- all at once")
-    plt.xlabel("latitude")
-    plt.ylabel("longitude")
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
+    plt.legend()
     plt.show()
 
 
