@@ -2,6 +2,7 @@ from typing import NamedTuple
 
 import numpy as np
 import matplotlib.pyplot as plt
+from numpy import array
 
 
 def distance(a: np.ndarray, b: np.ndarray):
@@ -55,7 +56,8 @@ def scale(pointpx: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, cor
 
 
 def calc_angle(v1, v2):
-    return np.arccos((v1 @ v2 / (np.linalg.norm(v1) * np.linalg.norm(v2))))
+    """ Calcuate the signed angle. """
+    return np.arctan2(v1[1], v1[0]) - np.arctan2(v2[1], v2[0])
 
 
 def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corner_ll: np.ndarray) -> np.ndarray:
@@ -87,9 +89,10 @@ def rotate(point: np.ndarray, corner_ur: np.ndarray, corner_ul: np.ndarray, corn
     axis_left = np.array([0, -1]) if vec_left[1] < 0 else np.array([0, 1])
 
     # those angles should be similar.
-    anglex = -calc_angle(vec_top, axis_top)
-    angley = -calc_angle(vec_left, axis_left)
+    anglex = calc_angle(vec_top, axis_top)
+    angley = calc_angle(vec_left, axis_left)
     angles = np.array([anglex, angley])
+    print(angles)
     angle = angles[np.argmax(np.abs(angles))]
     M_rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     return M_rotation @ point
@@ -152,7 +155,7 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     if not 0 <= pointpx[1] <= imagesize[1]:
         print(f"[WARNING] point y coordinate (={pointpx[1]}) not in image-height (={imagesize[1]})")
 
-    #pointpx[0] = imagesize[0] - pointpx[0]
+    # pointpx[0] = imagesize[0] - pointpx[0]
 
     point = scale(pointpx,
                   corner_ur=corner_ur,
@@ -166,16 +169,17 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     return point
 
 
+def make_points(imagesize):
+    nxs, nys = imagesize[0] + 1, imagesize[1] + 1
+    xs, ys = np.mgrid[0:nxs:40 * 1j, 0:nys:40 * 1j]
+    xs, ys = xs.flatten(), ys.flatten()
+    v = np.random.random(xs.size) * 50
+    return np.column_stack((xs, ys)), v
+
+
 def visualize():
     """ Visualize the transformation steps on example input. """
-    # corner1 = np.array([26.49, 3.82])
-    # corner2 = np.array([25.54, 3.83])
-    # corner3 = np.array([25.54, 3.75])
-    # corner4 = np.array([26.49, 3.74])
-    # corners = np.column_stack((corner1, corner2, corner3, corner4))
-    # imagesize = np.array([52224, 5064]) // 10
-    from numpy import array
-    a = eval("""(
+    inputb = eval("""(
         [array([ 1213.25018311, 50283.76699829]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([ 1069.20169067, 47749.85971069]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([ 5774.96826172, 44479.32678223]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
@@ -193,13 +197,20 @@ def visualize():
         [array([4726.63311768, 5713.96124268]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([ 844.        , 4983.78283691]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])],
         [array([3738.62582397, 2790.93508911]), array([  3.73, 116.53]), array([  3.64, 116.53]), array([  3.62, 115.59]), array([ 5064, 52224])])""")
-    points = np.array([x[0] for x in a])
-    #offset = np.array([3.7, 116])
+
+    inputa = eval("""([array([1090.2268219 , 4951.45690823]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
+    ,[array([ 4420.54425049, 13048.45074463]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
+    ,[array([ 4425.96748352, 14084.15847778]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
+    ,[array([ 4395.55039978, 14317.54650879]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
+    ,[array([ 4346.92008209, 47847.70596313]), array([  3.82, 116.49]), array([  3.74, 116.49]), array([  3.75, 115.54]), array([ 5064, 52224])]
+    )""")
+    points = np.array([x[0] for x in inputa])
+    # offset = np.array([3.7, 116])
     offset = np.array([0, 0])
-    corner_ur = [x[1] for x in a][0] - offset
-    corner_ul = [x[2] for x in a][0] - offset
-    corner_ll = [x[3] for x in a][0] - offset
-    imagesize = [x[4] for x in a][0]
+    corner_ur = [x[1] for x in inputa][0] - offset
+    corner_ul = [x[2] for x in inputa][0] - offset
+    corner_ll = [x[3] for x in inputa][0] - offset
+    imagesize = [x[4] for x in inputa][0]
     if corner_ur[0] < 0:
         corner_ur[0] += 360
     elif corner_ur[0] > 360:
@@ -222,16 +233,13 @@ def visualize():
     plt.ylabel("latitude + 90")
     plt.show()
 
-    nxs, nys = imagesize[0] + 1, imagesize[1] + 1
-    xs, ys = np.mgrid[0:nxs:40 * 1j, 0:nys:40 * 1j]
-    xs, ys = xs.flatten(), ys.flatten()
-    v = np.random.random(xs.size) * 50
+    pixelpoints, pixelv = make_points(imagesize)
 
     # --- plot pixels --- #
-    # plt.scatter(xs, ys, s=v)
-    points_flipped = points.copy()
-    points_flipped[:, 0] = imagesize[0] - points[:, 0]
-    v = np.random.random(len(points_flipped)) * 50
+    plt.scatter(pixelpoints[:, 0], pixelpoints[:, 1], s=pixelv, label='pixelpoints')
+    plt.title("Pixels (simulated image)")
+    plt.show()
+    v = np.random.random(len(points)) * 50
     plt.scatter(points[:, 0], points[:, 1], s=v)
     plt.title("Pixels")
     plt.show()
@@ -239,14 +247,29 @@ def visualize():
     # points = np.column_stack((xs, ys))
 
     # --- Calc scaled points --- #
+    pixelpoints_scaled = np.array([scale(p,
+                                         corner_ur=corner_ur,
+                                         corner_ul=corner_ul,
+                                         corner_ll=corner_ll,
+                                         imagesize=imagesize) for p in pixelpoints])
+    plt.scatter(pixelpoints_scaled[:, 0], pixelpoints_scaled[:, 1], s=pixelv)
+    plt.xlim((0, 1.0))
+    plt.ylim((0, 1.0))  #
+    # plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    plt.title("Scaled pixelpoints")
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
+    plt.show()
+
     points_scaled = np.array([scale(p,
                                     corner_ur=corner_ur,
                                     corner_ul=corner_ul,
                                     corner_ll=corner_ll,
-                                    imagesize=imagesize) for p in points_flipped])
+                                    imagesize=imagesize) for p in points])
+    # xmin, xmax, ymin, ymax = points_scaled[:, 0].min(), points_scaled[:, 0].max(), points_scaled[:, 1].min(), points_scaled[:, 1].max()
     plt.scatter(points_scaled[:, 0], points_scaled[:, 1], s=v)
     plt.xlim((0, 1.0))
-    plt.ylim((0, 1.0))
+    plt.ylim((0, 1.0))  #
     # plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
     plt.title("Scaled")
     plt.xlabel("longitude")
@@ -254,6 +277,22 @@ def visualize():
     plt.show()
 
     # --- Calc rotation --- #
+
+    pixelpoints_rotated = np.array([rotate(p,
+                                           corner_ur=corner_ur,
+                                           corner_ul=corner_ul,
+                                           corner_ll=corner_ll) for p in pixelpoints_scaled])
+    plt.scatter(pixelpoints_rotated[:, 0], pixelpoints_rotated[:, 1], s=v, label='rotated')
+    plt.scatter(pixelpoints_scaled[:, 0], pixelpoints_scaled[:, 1], s=v, c='#FF0000AA', label='only scaled')
+    plt.xlim((-0.5, 0.5))
+    plt.ylim((0, 1.0))
+    # plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4))
+    plt.title("Scaled and rotated")
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
+    plt.legend()
+    plt.show()
+
     points_rotated = np.array([rotate(p,
                                       corner_ur=corner_ur,
                                       corner_ul=corner_ul,
@@ -270,15 +309,44 @@ def visualize():
     plt.show()
 
     # --- Calc Translation --- #
-    points_translated = np.array([translate(p,
-                                            corner_ll=corner_ll) for p in points_rotated])
-    plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v, label='translated')
+    pixelpoints_translated = np.array([translate(p, corner_ll=corner_ll) for p in pixelpoints_rotated])
+    pixelpoints_transformed_old = np.array(
+        [transform_old(p, corner_ur, corner_ul, corner_ll, imagesize) for p in pixelpoints])
+    xmin, xmax, ymin, ymax = (pixelpoints_translated[:, 0].min(), pixelpoints_translated[:, 0].max(),
+                              pixelpoints_translated[:, 1].min(), pixelpoints_translated[:, 1].max())
+    xmin, xmax = xmin - (xmax - xmin) * 0.1, xmax + (xmax - xmin) * 0.1
+    ymin, ymax = ymin - (ymax - ymin) * 0.1, ymax + (ymax - ymin) * 0.1
+    xmin2, xmax2, ymin2, ymax2 = (pixelpoints_translated[:, 0].min(), pixelpoints_translated[:, 0].max(),
+                                  pixelpoints_translated[:, 1].min(), pixelpoints_translated[:, 1].max())
+    xmin, xmax, ymin, ymax = min(xmin, xmin2), max(xmax, xmax2), min(ymin, ymin2), max(ymax, ymax2)
+    xlength, ylength = xmax - xmin, ymax - ymin
+    length = max(xlength, ylength)
+    xmax, ymax = max(xmax, xmin + length), max(ymax, ymin + length)
+    plt.scatter(pixelpoints_transformed_old[:, 0], pixelpoints_transformed_old[:, 1], s=v, label="Old algorithm")
+    plt.scatter(pixelpoints_translated[:, 0], pixelpoints_translated[:, 1], s=v, label='translated')
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4), label='corners')
+    plt.title("Complete transformation pixelpoints")
+    plt.xlim((xmin, xmax))
+    plt.ylim((ymin, ymax))
+    plt.xlabel("longitude")
+    plt.ylabel("latitude + 90")
+    plt.legend(loc="lower right")
+    # plt.xlim((3.5-offset[0], 3.5 + 1.3-offset[0]))
+    # plt.ylim((115.4-offset[1], 116.7-offset[1]))
+    plt.show()
+
+    points_translated = np.array([translate(p, corner_ll=corner_ll) for p in points_rotated])
+    plt.scatter(points_translated[:, 0], points_translated[:, 1], s=v, label='translated')
+    points_transformed_old = np.array([transform_old(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
+    plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4), label='corners')
+    plt.scatter(points_transformed_old[:, 0], points_transformed_old[:, 1], s=v, label="Old algorithm")
     plt.title("Complete transformation")
     plt.xlabel("longitude")
     plt.ylabel("latitude + 90")
-    plt.xlim((3.5-offset[0], 3.5 + 1.3-offset[0]))
-    plt.ylim((115.4-offset[1], 116.7-offset[1]))
+    plt.xlim((xmin, xmax))
+    plt.ylim((ymin, ymax))
+    # plt.xlim((3.5-offset[0], 3.5 + 1.3-offset[0]))
+    # plt.ylim((115.4-offset[1], 116.7-offset[1]))
     plt.legend()
     plt.show()
 
@@ -287,9 +355,9 @@ def visualize():
     points_transformed_old = np.array([transform_old(p, corner_ur, corner_ul, corner_ll, imagesize) for p in points])
     plt.scatter(corners[0], corners[1], s=np.linspace(30, 100, 4), label='Corners')
     plt.scatter(points_transformed[:, 0], points_transformed[:, 1], s=v, label="Our algorithm")
-    plt.scatter(points_transformed_old[:, 0], points_transformed[:, 1], s=v, label="Old algorithm")
-    plt.xlim((3.5 - offset[0], 3.5 + 1.3 - offset[0]))
-    plt.ylim((115.4 - offset[1], 116.7 - offset[1]))
+    plt.scatter(points_transformed_old[:, 0], points_transformed_old[:, 1], s=v, label="Old algorithm")
+    # plt.xlim((3.5 - offset[0], 3.5 + 1.3 - offset[0]))
+    # plt.ylim((115.4 - offset[1], 116.7 - offset[1]))
     plt.title("Complete transformation -- all at once")
     plt.xlabel("longitude")
     plt.ylabel("latitude + 90")
