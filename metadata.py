@@ -92,40 +92,16 @@ class MetaData:
         if system == 1:
             if self.ul_lon < self.ur_lon and self.ul_lat > self.ll_lat:
                 self.subject = 2
-                self.corner_ul_lon = self.ur_lon
-                self.corner_ur_lon = self.ul_lon
-                self.corner_ll_lon = self.lr_lon
-
-                self.corner_ul_lat = self.ul_lat
-                self.corner_ur_lat = self.ur_lat
-                self.corner_ll_lat = self.ll_lat
+                self.flip_lon()
 
             if self.ul_lon < self.ur_lon and self.ul_lat < self.ll_lat:
                 self.subject = 4
-                self.corner_ul_lon = self.ur_lon
-                self.corner_ur_lon = self.ul_lon
-                self.corner_ll_lon = self.lr_lon
-
-                self.corner_ul_lat = self.ll_lat
-                self.corner_ur_lat = self.lr_lat
-                self.corner_ll_lat = self.ul_lat
+                self.flip_lat()
+                self.flip_lon()
 
             if self.ul_lon > self.ur_lon and self.ul_lat > self.ll_lat:
                 self.subject = 1
-                self.corner_ul_lon = self.ul_lon
-                self.corner_ur_lon = self.ur_lon
-                self.corner_ll_lon = self.ll_lon
-
-                self.corner_ul_lat = self.ul_lat
-                self.corner_ur_lat = self.ur_lat
-                self.corner_ll_lat = self.ll_lat
 
             if self.ul_lon > self.ur_lon and self.ul_lat < self.ll_lat:
                 self.subject = 3
-                self.corner_ul_lon = self.ul_lon
-                self.corner_ur_lon = self.ur_lon
-                self.corner_ll_lon = self.ll_lon
-
-                self.corner_ul_lat = self.ll_lat
-                self.corner_ur_lat = self.lr_lat
-                self.corner_ll_lat = self.ul_lat
+                self.flip_lat()

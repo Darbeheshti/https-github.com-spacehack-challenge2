@@ -13,9 +13,11 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from osgeo import ogr
-from metadata import MetaData
 
+from metadata import MetaData
 # keras tensorflow etc are missing
+from src.test_transform import simple_angle_converter
+from src.transform import transform
 
 then = time.time()  # TIC
 Image.MAX_IMAGE_PIXELS = None  # disarm PIL Decompression Bomb Error
@@ -92,7 +94,8 @@ def process_image(parent, meta_data):
     # ___________________________________________________________________________________________________
     # %% 6b) load_image_coordinates
     image_coord = np.load(
-        './output/output_img_coord_02.npy')  # load results of RetinaNet, always the identical name
+        './output/{}/output_img_coord_02.npy'.format(
+            image_id[:-4]))  # load results of RetinaNet, always the identical name
     img_coord_split = np.hsplit(image_coord, 6)  # split loaded results for next steps
     upper_left_x = img_coord_split[0]
     upper_left_y = img_coord_split[1]
@@ -148,8 +151,32 @@ def process_image(parent, meta_data):
                 rec_ul_x_corr = x_len - rec_ul_x
                 rec_ul_y_corr = y_len - rec_ul_y
 
+            bolder_point = np.array([x_len - rec_ul_x_corr[0], rec_ul_y_corr[0]])
+            ur = np.array([meta_data.corner_ur_lon, meta_data.corner_ur_lat])
+            ul = np.array([meta_data.corner_ul_lon, meta_data.corner_ul_lat])
+            ll = np.array([meta_data.corner_ll_lon, meta_data.corner_ll_lat])
+            size = np.array([x_len, y_len])
+            result = transform(bolder_point,
+                               ur,
+                               ul,
+                               ll,
+                               size)
+
             rec_ul_lon = (rec_ul_x_corr * deg_per_pix_xdir) + meta_data.corner_ul_lon
-            rec_ul_lat = -1 * (rec_ul_y_corr * deg_per_pix_ydir) + meta_data.corner_ul_lat - 90  # 90 degree correction lifted
+            rec_ul_lat = -1 * (
+                        rec_ul_y_corr * deg_per_pix_ydir) + meta_data.corner_ul_lat - 90  # 90 degree correction lifted
+
+            rec_ul_lon2 = result[1]
+            rec_ul_lat2 = result[0] - 90  # 90 degree correction lifted
+
+            (rec_ul_lon3, rec_ul_lat3) = simple_angle_converter(bolder_point,
+                                   ur,
+                                   ul,
+                                   ll,
+                                   np.array([meta_data.corner_lr_lon, meta_data.corner_lr_lat]),
+                                   size)
+
+            print("diff: {}, {}".format(rec_ul_lon - rec_ul_lon2, rec_ul_lat - rec_ul_lat2))
 
             x_length_array = abs(lower_right_x - upper_left_x)  # bbox x dimension
             y_length_array = abs(lower_right_y - upper_left_y)  # bbox y dimension
@@ -249,24 +276,24 @@ def process_image(parent, meta_data):
 
         # print(lower_right_x_int) # width debugging
 
-        if lower_right_x_int.size > 0:
-            for i11 in range(length1):
-                uly = upper_left_y_int[aa, 0]
-                lry = lower_right_y_int[bb, 0]
-                ulx = upper_left_x_int[cc, 0]
-                lrx = lower_right_x_int[dd, 0]
-                detection_crop = parent[uly:lry, ulx:lrx]
-                current_time = str(int(time.time() * 10000))
-
-                image_save = Image.fromarray(detection_crop)
-                try:
-                    image_save.save('./detections/0.2/' + image_id + '_crop_' + current_time + '_02.tif', 'TIFF')
-                except SystemError:
-                    print("Patch touches parent edge - cutout not possible!")
-                aa = aa + 1
-                bb = bb + 1
-                cc = cc + 1
-                dd = dd + 1
+        # if lower_right_x_int.size > 0:
+        #     for i11 in range(length1):
+        #         uly = upper_left_y_int[aa, 0]
+        #         lry = lower_right_y_int[bb, 0]
+        #         ulx = upper_left_x_int[cc, 0]
+        #         lrx = lower_right_x_int[dd, 0]
+        #         detection_crop = parent[uly:lry, ulx:lrx]
+        #         current_time = str(int(time.time() * 10000))
+        #
+        #         image_save = Image.fromarray(detection_crop)
+        #         try:
+        #             image_save.save('./detections/0.2/' + image_id + '_crop_' + current_time + '_02.tif', 'TIFF')
+        #         except SystemError:
+        #             print("Patch touches parent edge - cutout not possible!")
+        #         aa = aa + 1
+        #         bb = bb + 1
+        #         cc = cc + 1
+        #         dd = dd + 1
     except NameError:
         print("No detections for CT 0.2!")
     # ___________________________________________________________________________________________________
