@@ -169,7 +169,6 @@ def transform(pointpx, corner_ur, corner_ul, corner_ll, imagesize):
     if not 0 <= pointpx[0] <= imagesize[0]:
         print(f"[WARNING] point x coordinate (={pointpx[0]}) not in image-width (={imagesize[0]})")
     if not 0 <= pointpx[1] <= imagesize[1]:
-    if not 0 <= pointpx[1] <= imagesize[1]:
         print(f"[WARNING] point y coordinate (={pointpx[1]}) not in image-height (={imagesize[1]})")
 
     # pointpx[0] = imagesize[0] - pointpx[0]
