@@ -45,48 +45,40 @@ class MetaData:
             system = 2
         if self.ul_lon - self.ur_lon > -300:  # NORMAL LON CASE
             system = 2
+
+        self.corner_ul_lon = self.ul_lon
+        self.corner_ur_lon = self.ur_lon
+        self.corner_ll_lon = self.ll_lon
+        self.corner_lr_lon = self.lr_lon
+
+        self.corner_ul_lat = self.ul_lat
+        self.corner_ur_lat = self.ur_lat
+        self.corner_ll_lat = self.ll_lat
+        self.corner_lr_lat = self.lr_lat
+
         # ___________________________________________________________________________________________________
         # %% 6e) NAC ORIENTATION - NORMAL LONGITUDE CASE
         if system == 2:
             if self.ul_lon < self.ur_lon and self.ul_lat > self.ll_lat:
                 self.subject = 1
-                self.corner_ul_lon = self.ul_lon
-                self.corner_ur_lon = self.ur_lon
-                self.corner_ll_lon = self.ll_lon
-
-                self.corner_ul_lat = self.ul_lat
-                self.corner_ur_lat = self.ur_lat
-                self.corner_ll_lat = self.ll_lat
 
             if self.ul_lon < self.ur_lon and self.ul_lat < self.ll_lat:
                 self.subject = 3
-                self.corner_ul_lon = self.ul_lon
-                self.corner_ur_lon = self.ur_lon
-                self.corner_ll_lon = self.ll_lon
-
-                self.corner_ul_lat = self.ll_lat
-                self.corner_ur_lat = self.lr_lat
-                self.corner_ll_lat = self.ul_lat
+                # FLIP LAT
+                self.flip_lat()
 
             if self.ul_lon > self.ur_lon and self.ul_lat > self.ll_lat:
                 self.subject = 2
-                self.corner_ul_lon = self.ur_lon
-                self.corner_ur_lon = self.ul_lon
-                self.corner_ll_lon = self.lr_lon
-
-                self.corner_ul_lat = self.ul_lat
-                self.corner_ur_lat = self.ur_lat
-                self.corner_ll_lat = self.ll_lat
+                # FLIP LON
+                self.flip_lon()
 
             if self.ul_lon > self.ur_lon and self.ul_lat < self.ll_lat:
                 self.subject = 4
-                self.corner_ul_lon = self.ur_lon
-                self.corner_ur_lon = self.ul_lon
-                self.corner_ll_lon = self.lr_lon
 
-                self.corner_ul_lat = self.ll_lat
-                self.corner_ur_lat = self.lr_lat
-                self.corner_ll_lat = self.ul_lat
+                # FLIP LON/LAT
+                self.flip_lat()
+                self.flip_lon()
+
         # ___________________________________________________________________________________________________
         # %% 6f) NAC ORIENTATION - SPECIAL LONGITUDE-BORDER CASE
         if system == 1:
@@ -105,3 +97,15 @@ class MetaData:
             if self.ul_lon > self.ur_lon and self.ul_lat < self.ll_lat:
                 self.subject = 3
                 self.flip_lat()
+
+    def flip_lat(self):
+        self.corner_ul_lat = self.ll_lat
+        self.corner_ur_lat = self.lr_lat
+        self.corner_ll_lat = self.ul_lat
+        self.corner_lr_lat = self.ur_lat
+
+    def flip_lon(self):
+        self.corner_ul_lon = self.ur_lon
+        self.corner_ur_lon = self.ul_lon
+        self.corner_ll_lon = self.lr_lon
+        self.corner_lr_lon = self.ll_lon
